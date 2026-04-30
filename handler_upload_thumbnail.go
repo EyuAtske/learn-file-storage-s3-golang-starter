@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -52,7 +54,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "Missing Content-Type for thumbnail", nil)
 		return
 	}
-	if mediaType != "image/jpeg" || mediaType != "image/png"{
+	if mediaType != "image/jpeg" && mediaType != "image/png"{
 		respondWithError(w, http.StatusBadRequest, "Not of type mime", nil)
 		return
 	}
@@ -75,20 +77,23 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	//store in file system
 	fileExe := strings.Split(mediaType, "/")
 	fmt.Print(fileExe[1])
-	fileName := fmt.Sprintf("%s.%s", videoID, fileExe[1])
+	key := make([]byte, 32)
+	rand.Read(key)
+	RawURLEncoding := base64.RawURLEncoding.EncodeToString(key)
+	fileName := fmt.Sprintf("%v.%s", RawURLEncoding, fileExe[1])
 	fPath := filepath.Join(cfg.assetsRoot,fileName)
 	newFile, err := os.Create(fPath)
-	defer newFile.Close()
 	if err != nil{
 		respondWithError(w, http.StatusUnauthorized, "Failed to create file", err)
 		return
 	}
+	defer newFile.Close()
 	_, err = io.Copy(newFile, file)
 	if err != nil{
 		respondWithError(w, http.StatusUnauthorized, "Failed to copy to the new file", err)
 		return
 	}
-	url := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, videoID, fileExe[1])
+	url := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, RawURLEncoding, fileExe[1])
 
 	//store in database
 	// url := base64.StdEncoding.EncodeToString(data)
