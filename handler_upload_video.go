@@ -68,13 +68,23 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer tempFile.Close()
 	io.Copy(tempFile, file)
 
+	aspectratio, err := getVideoAspectRatio(tempFile.Name())
+	var prefix string
+	switch aspectratio {
+	case "16:9":
+		prefix = "landscape"
+	case "9:16":
+		prefix = "portrait"
+	default:
+		prefix = "other"
+	}
 	tempFile.Seek(0, io.SeekStart)
 	b := make([]byte, 32)
 	_, err = rand.Read(b)
 	if err != nil {
 		log.Fatal(err)
 	}
-	filename := fmt.Sprintf("%x.mp4", b)
+	filename := fmt.Sprintf("%s/%x.mp4", prefix, b)
 	cfg.s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket: &cfg.s3Bucket,
 		Key: &filename,
