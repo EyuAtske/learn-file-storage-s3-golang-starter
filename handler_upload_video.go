@@ -67,8 +67,21 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer os.Remove("tempFile")
 	defer tempFile.Close()
 	io.Copy(tempFile, file)
+	proccesed, err := processVideoForFastStart(tempFile.Name())
+	if err != nil{
+		respondWithError(w, http.StatusBadRequest, "Couldn't fast start the video", err)
+		return
+	}
+	proccesedFile, err := os.Open(proccesed)
+	if err != nil{
+		respondWithError(w, http.StatusBadRequest, "Cant open proccesed file", err)
+		return
+	}
 
-	aspectratio, err := getVideoAspectRatio(tempFile.Name())
+	defer os.Remove("proccesedFile")
+	defer proccesedFile.Close()
+
+	aspectratio, err := getVideoAspectRatio(proccesedFile.Name())
 	var prefix string
 	switch aspectratio {
 	case "16:9":
@@ -78,7 +91,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	default:
 		prefix = "other"
 	}
-	tempFile.Seek(0, io.SeekStart)
+	proccesedFile.Seek(0, io.SeekStart)
 	b := make([]byte, 32)
 	_, err = rand.Read(b)
 	if err != nil {
@@ -88,7 +101,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	cfg.s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket: &cfg.s3Bucket,
 		Key: &filename,
-		Body: tempFile,
+		Body: proccesedFile,
 		ContentType: &mediaType,
 	})
 	videoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, filename)
