@@ -104,13 +104,9 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		Body: proccesedFile,
 		ContentType: &mediaType,
 	})
-	videoURL := fmt.Sprintf("%s,%s", cfg.s3Bucket, filename)
+	videoURL := fmt.Sprintf("https://%s/%s", cfg.s3CfDistribution, filename)
+	fmt.Print(filename)
 	metadata.VideoURL = &videoURL
-	metadata, err = cfg.dbVideoToSignedVideo(metadata)
-	if err != nil{
-		respondWithError(w, http.StatusBadRequest, "Unable to update metadata", err)
-		return
-	}
 	err = cfg.db.UpdateVideo(metadata)
 	if err != nil{
 		respondWithError(w, http.StatusBadRequest, "Unable to update metadata", err)
